@@ -5,11 +5,12 @@ import random
 # import librosa
 
 import numpy as np
-import tensorflow as tf
+# import tensorflow as tf
 import scipy.signal as sps
 
 from scipy.io import wavfile
 from tflite_support import metadata
+from tflite_runtime.interpreter import Interpreter
 
 TFLITE_FILENAME = 'browserfft-speech.tflite'
 SAVE_PATH = './models'
@@ -59,7 +60,8 @@ labels = get_labels(tflite_file)
 random_audio = get_random_audio_file(test_dir)
 
 # Ensure the audio sample fits the model input
-interpreter = tf.lite.Interpreter(tflite_file)
+# interpreter = tf.lite.Interpreter(tflite_file)
+interpreter = Interpreter(tflite_file)
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 input_size = input_details[0]['shape'][1]
