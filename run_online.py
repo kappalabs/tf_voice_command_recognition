@@ -11,8 +11,11 @@ import scipy.signal as sps
 
 from scipy.io import wavfile
 from tflite_support import metadata
-from tflite_runtime.interpreter import Interpreter
 
+from commands_execution import CommandsExecution
+from commands_processor import Command, CommandsProcessor
+
+from tflite_runtime.interpreter import Interpreter
 # import tensorflow as tf
 
 TFLITE_FILENAME = 'browserfft-speech.tflite'
@@ -105,6 +108,8 @@ buffer = np.zeros((sample_rate * 2,), dtype=np.float32)
 buffer_index = 0
 buffer_skip = int(sample_rate / 8)
 
+cp = CommandsProcessor()
+
 # Continuously read the input stream and classify the audio
 while True:
     # Read the input stream
@@ -142,8 +147,11 @@ while True:
         index = np.argmax(output_data)
 
         if index != 0:
-            # Print the label and confidence
-            print(labels[index], output_data[0][index])
+            command = Command(labels[index], output_data[0][index])
+            sentence = cp.process(command)
+            if sentence:
+                CommandsExecution.process_sentence(sentence)
+
 
 stream.stop_stream()
 stream.close()
