@@ -1,6 +1,7 @@
 import os
 import time
 import wave
+import struct
 import pyaudio
 import argparse
 
@@ -10,7 +11,8 @@ def get_configuration():
         "respeaker_rate": 44100,
         "respeaker_channels": 1,
         "respeaker_width": 2,
-        "chunk": 1024,
+        "respeaker_index": 1,
+        "chunk": 44100,
         "record_seconds": 2,
         "record_label": "background",
         "record_filename": "record_{}.wav".format(int(time.time())),
@@ -40,15 +42,19 @@ def record(config):
         format=p.get_format_from_width(config['respeaker_width']),
         channels=config['respeaker_channels'],
         input=True,
-        #input_device_index=RESPEAKER_INDEX,
+        #input_device_index=config['respeaker_index'],
     )
+
+    os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_pokoj_1/set\' -m \'{"brightness": 254}\'')
+    time.sleep(0.5)
+    os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_pokoj_1/set\' -m \'{"brightness": 50}\'')
 
     print("* recording")
 
     # Record for a few seconds
     frames = []
     for i in range(0, int(config['respeaker_rate'] / config['chunk'] * config['record_seconds'])):
-        data = stream.read(config['chunk'])
+        data = stream.read(config['chunk'], exception_on_overflow=False)
         frames.append(data)
 
     print("* done recording")
