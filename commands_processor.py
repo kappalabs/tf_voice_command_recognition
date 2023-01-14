@@ -14,7 +14,7 @@ class Command:
 
 class CommandsProcessor:
 
-    def __init__(self, threshold_confidence=0.9, threshold_time_sec=2):
+    def __init__(self, threshold_confidence=0.98, threshold_time_sec=2):
         self.threshold = threshold_confidence
         self.threshold_time_sec = threshold_time_sec
 
@@ -66,7 +66,7 @@ class CommandsProcessor:
         # Check if there is a known command sentence/tuple
         sentence = self.match_command_tuple(command)
 
-        print(command.name, command.confidence, command.timestamp)
+        print(command.name, command.confidence)
         print([str(command) for command in self.commands])
 
         # If there is no known command sentence/tuple, add the new command

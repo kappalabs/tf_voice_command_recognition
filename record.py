@@ -47,7 +47,7 @@ def record(config):
 
     os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_pokoj_1/set\' -m \'{"brightness": 254}\'')
     time.sleep(0.5)
-    os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_pokoj_1/set\' -m \'{"brightness": 50}\'')
+    os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_pokoj_1/set\' -m \'{"brightness": 0}\'')
 
     print("* recording")
 
