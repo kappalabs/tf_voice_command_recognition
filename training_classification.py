@@ -1,26 +1,23 @@
 import os
 import glob
+import json
 import random
 import shutil
-
-import tensorflow as tf
-print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
-
-import wave
-import scipy.signal as sps
-from scipy.io import wavfile
 import librosa
-import soundfile as sf
-from IPython.display import Audio
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 
+import numpy as np
+import seaborn as sns
+import soundfile as sf
+import tensorflow as tf
+import scipy.signal as sps
+import matplotlib.pyplot as plt
 import tflite_model_maker as mm
+
+from scipy.io import wavfile
+from tflite_support import metadata
+from multiprocessing import Process
 from tflite_model_maker import audio_classifier
-from tflite_model_maker.config import ExportFormat
-from audiomentations import Compose, AddGaussianNoise, PitchShift, Shift
-from audio_spec import MyFftSpec
+from audiomentations import Compose, AddGaussianNoise, PitchShift, Shift, TimeStretch
 
 print(f"TensorFlow Version: {tf.__version__}")
 print(f"Model Maker Version: {mm.__version__}")
@@ -33,14 +30,14 @@ TFLITE_FILENAME = 'browserfft-speech.tflite'
 SAVE_PATH = './models'
 
 spec = audio_classifier.BrowserFftSpec()
-# spec = MyFftSpec()
 
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
 augmentations_pipeline = Compose(
     [
-        AddGaussianNoise(min_amplitude=0.001, max_amplitude=0.015, p=0.5),
-        PitchShift(min_semitones=-4, max_semitones=4, p=0.5),
+        AddGaussianNoise(min_amplitude=0.001, max_amplitude=0.025, p=0.5),
+        TimeStretch(min_rate=0.8, max_rate=1.25, p=0.5),
+        PitchShift(min_semitones=-8, max_semitones=8, p=0.6),
         Shift(min_fraction=-0.5, max_fraction=0.5, p=0.5),
     ]
 )
@@ -90,7 +87,7 @@ def split_custom_background_sounds():
 
 
 def augment_data():
-    num_to_generate = 3000
+    num_to_generate = 10_000
     dest_framerate = 44_100
 
     combine_probability = 0.3
@@ -112,11 +109,24 @@ def augment_data():
         # Copy the original files to the new directory
         for file in files:
             shutil.copy(file, dest_dir)
-        num_to_generate_for_dir -= len(files)
+
+        # Number of present files
+        num_present_files = len(glob.glob(os.path.join(dest_dir, '*.wav')))
+
+        # Recalculate number of files to generate
+        num_to_generate_for_dir -= num_present_files
 
         # # Don't augment the background sounds
         # if directory == "background":
         #     continue
+
+        if "background" not in directory:
+            # continue
+            pass
+        else:
+            combine_probability = 0.05
+
+        print("Augmenting directory {} with {} files".format(dir_basename, num_to_generate_for_dir))
 
         # Start the generation of combined data
         while num_to_generate_for_dir > 0:
@@ -125,7 +135,7 @@ def augment_data():
 
             output_filename = os.path.join(dest_dir, "augmented_{}"
                                        .format(os.path.basename(foreground_file).split(".")[0]))
-            print("augmenting foreground file", foreground_file)
+            # print("augmenting foreground file", foreground_file)
 
             data = np.zeros((44100,), dtype=np.float32)
             multipliers = [1]
@@ -137,7 +147,7 @@ def augment_data():
                 output_filename = os.path.join(dest_dir, "augmented_{}_{}"
                                            .format(os.path.basename(background_file).split(".")[0],
                                                    os.path.basename(foreground_file).split(".")[0]))
-                print(" - combining with background file", background_file)
+                # print(" - combining with background file", background_file)
 
                 # Choose a random background loudness
                 multiplier_background = np.random.random() * background_max_loudness
@@ -228,7 +238,7 @@ test_data = audio_classifier.DataLoader.from_folder(spec, test_dir, cache=True)
 
 # If your dataset has fewer than 100 samples per class,
 # you might want to try a smaller batch size
-batch_size = 25
+batch_size = 64
 epochs = 25
 model = audio_classifier.create(train_data, spec, validation_data, batch_size, epochs, train_whole_model=True)
 
@@ -255,3 +265,57 @@ show_confusion_matrix(confusion_matrix.numpy(), test_data.index_to_label)
 print(f'Exporing the model to {SAVE_PATH}')
 model.export(SAVE_PATH, tflite_filename=TFLITE_FILENAME)
 model.export(SAVE_PATH, export_format=[mm.ExportFormat.SAVED_MODEL, mm.ExportFormat.LABEL])
+
+
+def run_example():
+
+    def get_random_audio_file(samples_dir):
+        files = os.path.abspath(os.path.join(samples_dir, '*/*.wav'))
+        files_list = glob.glob(files)
+        random_audio_path = random.choice(files_list)
+        return random_audio_path
+
+    def get_labels(model):
+        """Returns a list of labels, extracted from the model metadata."""
+        displayer = metadata.MetadataDisplayer.with_model_file(model)
+        labels_file = displayer.get_packed_associated_file_list()[0]
+        labels = displayer.get_associated_file_buffer(labels_file).decode()
+        return [line for line in labels.split('\n')]
+
+    def get_input_sample_rate(model):
+        """Returns the model's expected sample rate, from the model metadata."""
+        displayer = metadata.MetadataDisplayer.with_model_file(model)
+        metadata_json = json.loads(displayer.get_metadata_json())
+        input_tensor_metadata = metadata_json['subgraph_metadata'][0][
+            'input_tensor_metadata'][0]
+        input_content_props = input_tensor_metadata['content']['content_properties']
+        return input_content_props['sample_rate']
+
+    # Get a WAV file for inference and list of labels from the model
+    tflite_file = os.path.join(SAVE_PATH, TFLITE_FILENAME)
+    labels = get_labels(tflite_file)
+    random_audio = get_random_audio_file(test_dir)
+
+    # Ensure the audio sample fits the model input
+    interpreter = tf.lite.Interpreter(tflite_file)
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+    input_size = input_details[0]['shape'][1]
+    sample_rate = get_input_sample_rate(tflite_file)
+    audio_data, _ = librosa.load(random_audio, sr=sample_rate)
+    if len(audio_data) < input_size:
+        audio_data.resize(input_size)
+    audio_data = np.expand_dims(audio_data[:input_size], axis=0)
+
+    # Run inference
+    interpreter.allocate_tensors()
+    interpreter.set_tensor(input_details[0]['index'], audio_data)
+    interpreter.invoke()
+    output_data = interpreter.get_tensor(output_details[0]['index'])
+
+    # Display prediction and ground truth
+    top_index = np.argmax(output_data[0])
+    label = labels[top_index]
+    score = output_data[0][top_index]
+    print('---prediction---')
+    print(f'Class: {label}\nScore: {score}')
