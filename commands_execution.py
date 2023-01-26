@@ -12,26 +12,24 @@ class CommandsExecution:
         print("processing sentence", sentence[0].name, sentence[1].name)
 
         if sentence[0].name == "rozsvit" and sentence[1].name == "chodba":
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_chodba_1/set\' -m \'{"state": "on"}\'')
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_chodba_2/set\' -m \'{"state": "on"}\'')
+            os.system('mosquitto_pub -t \'hlas/chodba/svetla/on\' -m \'{}\'')
         elif sentence[0].name == "zhasni" and sentence[1].name == "chodba":
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_chodba_1/set\' -m \'{"state": "off"}\'')
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_chodba_2/set\' -m \'{"state": "off"}\'')
+            os.system('mosquitto_pub -t \'hlas/chodba/svetla/off\' -m \'{}\'')
         elif sentence[0].name == "rozsvit" and sentence[1].name == "pokoj":
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_pokoj_1/set\' -m \'{"state": "on"}\'')
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_pokoj_2/set\' -m \'{"state": "on"}\'')
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_pokoj_3/set\' -m \'{"state": "on"}\'')
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_pokoj_4/set\' -m \'{"state": "on"}\'')
+            os.system('mosquitto_pub -t \'hlas/pokoj/svetla/on\' -m \'{}\'')
         elif sentence[0].name == "zhasni" and sentence[1].name == "pokoj":
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_pokoj_1/set\' -m \'{"state": "off"}\'')
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_pokoj_2/set\' -m \'{"state": "off"}\'')
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_pokoj_3/set\' -m \'{"state": "off"}\'')
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_pokoj_4/set\' -m \'{"state": "off"}\'')
+            os.system('mosquitto_pub -t \'hlas/pokoj/svetla/off\' -m \'{}\'')
         elif sentence[0].name == "rozsvit" and sentence[1].name == "postel":
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_1100_1/set\' -m \'{"state": "on"}\'')
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_1100_2/set\' -m \'{"state": "on"}\'')
+            os.system('mosquitto_pub -t \'hlas/loznice/svetla/on\' -m \'{}\'')
         elif sentence[0].name == "zhasni" and sentence[1].name == "postel":
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_1100_1/set\' -m \'{"state": "off"}\'')
-            os.system('mosquitto_pub -t \'zigbee2mqtt/svetlo_1100_2/set\' -m \'{"state": "off"}\'')
+            os.system('mosquitto_pub -t \'hlas/loznice/svetla/off\' -m \'{}\'')
+        elif sentence[0].name == "rozsvit" and sentence[1].name == "koupelna":
+            os.system('mosquitto_pub -t \'hlas/koupelna/svetla/on\' -m \'{}\'')
+        elif sentence[0].name == "zhasni" and sentence[1].name == "koupelna":
+            os.system('mosquitto_pub -t \'hlas/koupelna/svetla/off\' -m \'{}\'')
+        elif sentence[0].name == "rozsvit" and sentence[1].name == "kuchyn":
+            os.system('mosquitto_pub -t \'hlas/kuchyn/svetla/on\' -m \'{}\'')
+        elif sentence[0].name == "zhasni" and sentence[1].name == "kuchyn":
+            os.system('mosquitto_pub -t \'hlas/kuchyn/svetla/off\' -m \'{}\'')
         else:
             print("unknown sentence", sentence[0].name, sentence[1].name)
