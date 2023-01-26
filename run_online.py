@@ -19,7 +19,7 @@ from commands_processor import Command, CommandsProcessor
 from tflite_runtime.interpreter import Interpreter
 # import tensorflow as tf
 
-TFLITE_FILENAME = 'browserfft-speech-230114.tflite'
+TFLITE_FILENAME = 'browserfft-speech-23012217.tflite'
 SAVE_PATH = './models'
 # test_dir = './dataset-test'
 
@@ -107,7 +107,7 @@ input_size = input_details[0]['shape'][1]
 
 buffer = np.zeros((sample_rate * 2,), dtype=np.float32)
 buffer_index = 0
-buffer_skip = int(sample_rate / 4)
+buffer_skip = int(sample_rate / 8)
 
 cp = CommandsProcessor()
 
