@@ -15,7 +15,7 @@ class Command:
 
 class CommandsProcessor:
 
-    def __init__(self, threshold_confidence=0.9, threshold_time_sec=3, num_hits_threshold=6):
+    def __init__(self, threshold_confidence=0.9, threshold_time_sec=3, num_hits_threshold=3):
         self.threshold = threshold_confidence
         self.threshold_time_sec = threshold_time_sec
         self.num_hits_threshold = num_hits_threshold
@@ -67,8 +67,8 @@ class CommandsProcessor:
         # Sort the commands based on the confidence
         sorted_hits = [(hit[0], sorted(hit[1], key=lambda x: x.confidence, reverse=True)) for hit in sorted_hits]
         # Filter the commands based on the number of hits
-        sorted_hits = [(hit[0], hit[1][0]) for hit in sorted_hits if len(hit[1]) >= self.num_hits_threshold]
-        if len(sorted_hits) > num_words:
+        sorted_hits = [hit[1][0] for hit in sorted_hits if len(hit[1]) >= self.num_hits_threshold]
+        if len(sorted_hits) >= num_words:
             # Return the commands with the largest confidence
             return sorted_hits[:num_words]
 
@@ -93,8 +93,9 @@ class CommandsProcessor:
         # print("Returning command:", command.name, command.confidence)
         # print([str(command) for command in self.commands])
 
-        # if sentence is not None:
-        #     # Clear the commands
-        #     self.commands = []
+        if sentence is not None:
+            # Clear the commands
+            # self.commands = []
+            print("Returning sentence:", sentence)
 
         return sentence
