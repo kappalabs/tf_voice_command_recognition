@@ -1,4 +1,5 @@
 import time
+from collections import defaultdict
 
 
 class Command:
@@ -14,9 +15,10 @@ class Command:
 
 class CommandsProcessor:
 
-    def __init__(self, threshold_confidence=0.98, threshold_time_sec=2):
+    def __init__(self, threshold_confidence=0.9, threshold_time_sec=3, num_hits_threshold=6):
         self.threshold = threshold_confidence
         self.threshold_time_sec = threshold_time_sec
+        self.num_hits_threshold = num_hits_threshold
 
         self.commands = []
 
@@ -55,6 +57,23 @@ class CommandsProcessor:
 
         return max_command
 
+    def find_sentence(self, num_words=2):
+        hits = defaultdict(list)
+        for command in self.commands:
+            hits[command.name].append(command)
+
+        # Sort the commands based on the number of hits
+        sorted_hits = sorted(hits.items(), key=lambda x: len(x[1]), reverse=True)
+        # Sort the commands based on the confidence
+        sorted_hits = [(hit[0], sorted(hit[1], key=lambda x: x.confidence, reverse=True)) for hit in sorted_hits]
+        # Filter the commands based on the number of hits
+        sorted_hits = [(hit[0], hit[1][0]) for hit in sorted_hits if len(hit[1]) >= self.num_hits_threshold]
+        if len(sorted_hits) > num_words:
+            # Return the commands with the largest confidence
+            return sorted_hits[:num_words]
+
+        return None
+
     def process(self, command: Command):
         # Determine if the command should be saved
         if command.confidence < self.threshold:
@@ -63,18 +82,19 @@ class CommandsProcessor:
         # Clear old commands
         self.remove_old_commands(command.timestamp)
 
+        # Add the command
+        # self.add_command(command)
+        self.commands.append(command)
+
         # Check if there is a known command sentence/tuple
-        sentence = self.match_command_tuple(command)
+        # sentence = self.match_command_tuple(command)
+        sentence = self.find_sentence()
 
-        print(command.name, command.confidence)
-        print([str(command) for command in self.commands])
+        # print("Returning command:", command.name, command.confidence)
+        # print([str(command) for command in self.commands])
 
-        # If there is no known command sentence/tuple, add the new command
-        if sentence is None:
-            # Add the command
-            self.add_command(command)
-        else:
-            # Clear the commands
-            self.commands = []
+        # if sentence is not None:
+        #     # Clear the commands
+        #     self.commands = []
 
         return sentence
