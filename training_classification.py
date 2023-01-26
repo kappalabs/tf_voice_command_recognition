@@ -86,8 +86,95 @@ def split_custom_background_sounds():
             sf.write(os.path.join(background_dir, name + str(i) + '.wav'), data, rate)
 
 
+def _create_dataset_for_dir_thread(thread_idx: int, num_to_generate: int, directory: str, dest_framerate: int,
+                                   combine_probability: float, background_max_loudness: float, background_files: list):
+    num_to_generate_for_dir = num_to_generate
+    dir_basename = directory.split(os.path.sep)[-2]
+
+    # Get the files
+    files = glob.glob(os.path.join(dataset_dir, dir_basename, '*.wav'))
+
+    # Create the destination directory
+    dest_dir = os.path.join(dataset_dir_new, dir_basename)
+    os.makedirs(dest_dir, exist_ok=True)
+
+    # Copy the original files to the new directory
+    for file in files:
+        shutil.copy(file, dest_dir)
+
+    # Number of present files
+    num_present_files = len(glob.glob(os.path.join(dest_dir, '*.wav')))
+
+    # Recalculate number of files to generate
+    num_to_generate_for_dir -= num_present_files
+
+    # # Don't augment the background sounds
+    # if directory == "background":
+    #     continue
+
+    if "background" not in directory:
+        # continue
+        pass
+    else:
+        combine_probability = 0.15
+
+    print("Augmenting directory {} with {} files".format(dir_basename, num_to_generate_for_dir))
+
+    # Start the generation of combined data
+    while num_to_generate_for_dir > 0:
+        # Select random background sound file
+        foreground_file = np.random.choice(files, 1)[0]
+
+        output_filename = os.path.join(dest_dir, "augmented_{}"
+                                   .format(os.path.basename(foreground_file).split(".")[0]))
+        # print("augmenting foreground file", foreground_file)
+
+        data = np.zeros((44100,), dtype=np.float32)
+        multipliers = [1]
+        files_to_load = [foreground_file]
+
+        # Prepare also the background sound
+        if np.random.random() < combine_probability:
+            background_file = np.random.choice(background_files, 1)[0]
+            output_filename = os.path.join(dest_dir, "augmented_{}_{}"
+                                       .format(os.path.basename(background_file).split(".")[0],
+                                               os.path.basename(foreground_file).split(".")[0]))
+            # print(" - combining with background file", background_file)
+
+            # Choose a random background loudness
+            multiplier_background = np.random.random() * background_max_loudness
+            multipliers = [1 - multiplier_background, multiplier_background]
+
+            files_to_load = [foreground_file, background_file]
+
+        # Load/combine the audio files
+        for infile_index, infile in enumerate(files_to_load):
+            sampling_rate, audio_data = wavfile.read(infile)
+
+            # Resample data
+            number_of_samples = round(len(audio_data) * float(dest_framerate) / sampling_rate)
+            audio_data = sps.resample(audio_data, number_of_samples) * multipliers[infile_index]
+            audio_data = np.asarray(audio_data, dtype=np.float32)
+
+            if len(audio_data.shape) > 1:
+                audio_data = audio_data[:, 0]
+
+            # Combine the data
+            data[:len(audio_data)] += audio_data
+
+        # Augment the data
+        data = augmentations_pipeline(data, sample_rate=dest_framerate)
+
+        output_filename = output_filename + "_{}.wav".format(np.random.randint(0, 10e9))
+
+        # Save the resulting audio file
+        wavfile.write(output_filename, dest_framerate, data.astype(np.int16))
+
+        num_to_generate_for_dir -= 1
+
+
 def augment_data():
-    num_to_generate = 10_000
+    num_to_generate = 30_000
     dest_framerate = 44_100
 
     combine_probability = 0.3
@@ -95,90 +182,19 @@ def augment_data():
 
     dirs = glob.glob(os.path.join(dataset_dir, '*' + os.path.sep))
     background_files = glob.glob(os.path.join(dataset_dir, 'background', '*.wav'))
-    for directory in dirs:
-        num_to_generate_for_dir = num_to_generate
-        dir_basename = directory.split(os.path.sep)[-2]
 
-        # Get the files
-        files = glob.glob(os.path.join(dataset_dir, dir_basename, '*.wav'))
+    processes = []
+    for directory_idx, directory in enumerate(dirs):
+        p = Process(target=_create_dataset_for_dir_thread,
+                    args=(directory_idx, num_to_generate, directory, dest_framerate, combine_probability,
+                          background_max_loudness, background_files))
+        p.start()
+        processes.append(p)
 
-        # Create the destination directory
-        dest_dir = os.path.join(dataset_dir_new, dir_basename)
-        os.makedirs(dest_dir, exist_ok=True)
+    for p in processes:
+        p.join()
 
-        # Copy the original files to the new directory
-        for file in files:
-            shutil.copy(file, dest_dir)
-
-        # Number of present files
-        num_present_files = len(glob.glob(os.path.join(dest_dir, '*.wav')))
-
-        # Recalculate number of files to generate
-        num_to_generate_for_dir -= num_present_files
-
-        # # Don't augment the background sounds
-        # if directory == "background":
-        #     continue
-
-        if "background" not in directory:
-            # continue
-            pass
-        else:
-            combine_probability = 0.05
-
-        print("Augmenting directory {} with {} files".format(dir_basename, num_to_generate_for_dir))
-
-        # Start the generation of combined data
-        while num_to_generate_for_dir > 0:
-            # Select random background sound file
-            foreground_file = np.random.choice(files, 1)[0]
-
-            output_filename = os.path.join(dest_dir, "augmented_{}"
-                                       .format(os.path.basename(foreground_file).split(".")[0]))
-            # print("augmenting foreground file", foreground_file)
-
-            data = np.zeros((44100,), dtype=np.float32)
-            multipliers = [1]
-            files_to_load = [foreground_file]
-
-            # Prepare also the background sound
-            if np.random.random() < combine_probability:
-                background_file = np.random.choice(background_files, 1)[0]
-                output_filename = os.path.join(dest_dir, "augmented_{}_{}"
-                                           .format(os.path.basename(background_file).split(".")[0],
-                                                   os.path.basename(foreground_file).split(".")[0]))
-                # print(" - combining with background file", background_file)
-
-                # Choose a random background loudness
-                multiplier_background = np.random.random() * background_max_loudness
-                multipliers = [1 - multiplier_background, multiplier_background]
-
-                files_to_load = [foreground_file, background_file]
-
-            # Load/combine the audio files
-            for infile_index, infile in enumerate(files_to_load):
-                sampling_rate, audio_data = wavfile.read(infile)
-
-                # Resample data
-                number_of_samples = round(len(audio_data) * float(dest_framerate) / sampling_rate)
-                audio_data = sps.resample(audio_data, number_of_samples) * multipliers[infile_index]
-                audio_data = np.asarray(audio_data, dtype=np.float32)
-
-                if len(audio_data.shape) > 1:
-                    audio_data = audio_data[:, 0]
-
-                # Combine the data
-                data[:len(audio_data)] += audio_data
-
-            # Augment the data
-            data = augmentations_pipeline(data, sample_rate=dest_framerate)
-
-            output_filename = output_filename + "_{}.wav".format(np.random.randint(0, 10e9))
-
-            # Save the resulting audio file
-            wavfile.write(output_filename, dest_framerate, data.astype(np.int16))
-
-            num_to_generate_for_dir -= 1
+    print("Done augmenting data")
 
 
 def create_test_dataset():
