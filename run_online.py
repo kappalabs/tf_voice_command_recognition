@@ -1,5 +1,6 @@
 import io
 import os
+import time
 import glob
 import json
 import struct
@@ -150,6 +151,7 @@ while True:
 
         if index != 0:
             command = Command(labels[index], output_data[0][index])
+            print("{}: {} {}".format(time.strftime("%H:%M:%S %d.%m.%Y"), command.name, command.confidence))
             sentence = cp.process(command)
             if sentence:
                 CommandsExecution.process_sentence(sentence)

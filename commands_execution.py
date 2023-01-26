@@ -1,4 +1,5 @@
 import os
+import time
 
 from typing import Tuple
 
@@ -9,7 +10,7 @@ class CommandsExecution:
 
     @staticmethod
     def process_sentence(sentence: Tuple[Command, Command]):
-        print("processing sentence", sentence[0].name, sentence[1].name)
+        print("{}: processing sentence".format(time.strftime("%H:%M:%S %d.%m.%Y")), sentence[0].name, sentence[1].name)
 
         if sentence[0].name == "rozsvit" and sentence[1].name == "chodba":
             os.system('mosquitto_pub -t \'hlas/chodba/svetla/on\' -m \'{}\'')
