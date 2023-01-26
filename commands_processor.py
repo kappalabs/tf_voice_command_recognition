@@ -67,8 +67,12 @@ class CommandsProcessor:
         # Sort the commands based on the confidence
         sorted_hits = [(hit[0], sorted(hit[1], key=lambda x: x.confidence, reverse=True)) for hit in sorted_hits]
         # Filter the commands based on the number of hits
+        sorted_hits_nums = [len(hit[1]) for hit in sorted_hits if len(hit[1]) >= self.num_hits_threshold]
         sorted_hits = [hit[1][0] for hit in sorted_hits if len(hit[1]) >= self.num_hits_threshold]
         if len(sorted_hits) >= num_words:
+            for hit_idx in range(num_words):
+                hit = sorted_hits[hit_idx]
+                print(" - hit {}: #{} ({})".format(hit.name, sorted_hits_nums[hit_idx], hit.confidence))
             # Return the commands with the largest confidence
             return sorted_hits[:num_words]
 
@@ -93,9 +97,9 @@ class CommandsProcessor:
         # print("Returning command:", command.name, command.confidence)
         # print([str(command) for command in self.commands])
 
-        if sentence is not None:
-            # Clear the commands
-            # self.commands = []
-            print("Returning sentence:", sentence)
+        # if sentence is not None:
+        #     # Clear the commands
+        #     # self.commands = []
+        #     print("Returning sentence:", sentence)
 
         return sentence
